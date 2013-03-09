@@ -148,6 +148,7 @@ License and Author
 ==================
 
 This cookbook:
+
 Author:: Srinivasan Mohan (<git@onepwr.org>)
 
 Many thanks to the nice folks at Opscode for the original [AWS cookbook](https://github.com/opscode-cookbooks/aws) this derived from(and Chef!):
