@@ -178,7 +178,7 @@ Misc
 =======
 I have tested this on Ubuntu/Debian systems only although its pure Ruby so it should work on Centos/Amzn/Redhat boxes as well. This cookbook does not do wird stuff with any attributes etc so it should be safe to run on a system with Chef gem 11.x as well although I have only tested this wth chef gem until v10.24.0.
 
-Note
+Important
 ====
 
 Note that Amazon does'nt support PIOPS volumes in all regions. For example, us-west-1 does'nt support PIOPS at all while us-east-1 supports PIOPS in only 3 out of 5 Availability zones (AZs). The concept of AZ us-east-1a-e varies depending upon every individual AWS account (so your us-east-1a is not necessarily the same physical AZ as the us-east-1a I see under my account) so its pointless for me to list which AZs this would work with... 
@@ -189,4 +189,5 @@ Trying to create a PIOPs volume in a zone that does'nt support it will lead to t
 This will cause an abort in the cookbook invocation. My recommendation is to figure out which AZs support PIOPS (See test script bin/test_iops_support.rb, update auth.yml with your AWS creds and point it to a AWS region) beforehand and setup your other cookbooks accordingly.  
 
 Also note that while standard EBS volumes allow significant burst (in terms of IOPs), PIOPS volumes seem to burst in a very limited way (e.g. a 1000 IOPS volume did not peak beyond 1030 in my tests) - The advantage of a PIOPS volume is that its performance is guaranteed to be consistently within your IOPs requested setting and thats it.
- 
+
+To be able to use a PIOPS volume effectively, your instance needs to be an ebs-optimized instance (not every instance is capable of being ebs-optimized so check AWS docs) 
