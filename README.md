@@ -136,7 +136,7 @@ This will create a 50G volume, attach it to the instance as `/dev/sdi`.
       device "/dev/sdj"
       snapshot_id "snap-ABCDEFGH"
       type "io1"
-      iops "500"
+      iops 500
       action [ :create, :attach ]
       description "#{node['fqdn']} PIOPS /somepartition"
     end
