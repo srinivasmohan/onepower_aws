@@ -1,0 +1,3 @@
+#We need at least fog v1.6.0 to be able to create optimized ebs volumes...
+# As per https://github.com/fog/fog/blob/master/changelog.txt
+default['onepower_aws']['fog_min_version']='1.6.0'
