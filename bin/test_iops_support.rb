@@ -85,20 +85,21 @@ fogobj = Fog::Compute.new(
     :aws_access_key_id => creds[:aws_access_key_id],
     :aws_secret_access_key => creds[:aws_secret_access_key]
 )
+azlist=fogobj.describe_availability_zones.body['availabilityZoneInfo'].map {|az| az['zoneName']}
 
 volhash=Hash.new
-["a","b","c","d","e"].each do |zone|
-  $stderr.puts "Trying zone #{thisregion}#{zone}"
+azlist.each do |thiszone|
+  $stderr.puts "Trying AZ #{thiszone}" 
   begin
-    volid=create_volume(fogobj,nil, 40, "#{thisregion}#{zone}", 180, "io1", 400,"TEST-iop-#{thisregion}-#{zone}")
-    volhash["#{thisregion}#{zone}"]=volid unless volid.nil? 
+    volid=create_volume(fogobj,nil, 40, thiszone, 180, "io1", 400,"TEST-iop-#{thiszone}")
+    volhash["#{thiszone}"]=volid unless volid.nil? 
   rescue Exception => e
-   $stderr.puts "Failed #{thisregion}#{zone} - #{e.inspect}"
+   $stderr.puts "Failed #{thiszone} - #{e.inspect}"
   end
   puts ""
 end
 
-puts "PIOPS Supported AZs are(along with test volumes created)\n"+volhash.to_yaml
+puts "PIOPS Supported AZs are(along with test volumes created and dropped)\n"+volhash.to_yaml
 
 volhash.keys.each do |x|
   fogobj.delete_volume(volhash[x]) 
