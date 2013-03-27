@@ -14,7 +14,7 @@ This is built from the Opscode AWS cookbook with the following differences -
 * As a result, allows creation of AWS PIOPS EBS volumes (EBS with guaranteed IOPs)
 * Tags created volumes if description is set (Name tag shows in console)
 
-This is a drop in replacement in cookbooks that use the AWS module - However for *existing chef managed instances that had volumes crested using `aws` module*, you may need to update the node data as this module uses the node attributes `onepwr_aws/ebs_volume` to persist info on volume-ids of alloted volumes etc.
+This is a drop in replacement in cookbooks that use the AWS module - However for *existing chef managed instances that had volumes created using `aws` module*, you may need to update the node data as this module uses the node attributes `onepwr_aws/ebs_volume` to persist info on volume-ids of alloted volumes etc.
 
 Requirements
 ============
@@ -177,7 +177,7 @@ Changes
 
 Misc
 =======
-I have tested this on Ubuntu/Debian systems only although its pure Ruby so it should work on Centos/Amzn/Redhat boxes as well. This cookbook does not do wird stuff with any attributes etc so it should be safe to run on a system with Chef gem 11.x as well although I have only tested this wth chef gem until v10.24.0.
+I have tested this on Ubuntu/Debian systems only although its pure Ruby so it should work on Centos/Amzn/Redhat boxes as well. This cookbook does not do weird stuff with any attributes etc so it should be safe to run on a system with Chef gem 11.x as well although I have only tested this wth chef gem until v10.24.0.
 
 Important
 ====
