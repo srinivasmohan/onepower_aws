@@ -2,7 +2,7 @@
 # Cookbook Name:: onepower_aws
 # Recipe:: default
 #
-# Copyright 2013, Srinivasan Mohan
+# Copyright 2013, Srinivasan Mohan, Onepower
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -23,14 +23,26 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#Fog gem started supporting EBS Optim/PIOPs since v1.6.0
-rg = gem_package "fog" do
-  version node['onepower_aws']['fog_min_version']
-  action :nothing
+#Make sure require packages in place for fog.
+%w{libxslt-dev libxml2-dev}.each do |thispack|
+  packinstall = package "#{thispack}" do
+    action :nothing
+  end
+  packinstall.run_action(:install)
 end
-rg.run_action(:install)
+#Install required gems and load them
+%w{fog}.each do |thisgem|
+  r = gem_package thisgem do
+    action :nothing
+  end
+  r.run_action(:install)
+end
 
-require 'rubygems'
+require "rubygems"
 Gem.clear_paths
-require 'fog'
+require "fog"
 
+
+class Chef::Recipe
+  include Onepower::AWS
+end

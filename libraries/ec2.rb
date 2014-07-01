@@ -1,7 +1,7 @@
 begin
     require 'fog'
-rescue LoadError
-    Chef::Log.warn("Missing fog gem!")
+rescue LoadError => e
+    Chef::Log.warn("Missing fog gem - #{e.inspect}")
 end
 require 'json'
 require 'open-uri'
@@ -9,7 +9,7 @@ require 'open-uri'
 #http://wiki.opscode.com/pages/viewpage.action?pageId=7274964 - Orig resource stored to provider as @new_resource
 module Onepower
   module AWS
-      #Given a volume id, find the latest snapshot
+     #Given a volume id, find the latest snapshot
       def find_snapshot_id(volume_id="")
         snapshot_id = nil
         ec2.describe_snapshots.body['snapshotSet'].sort { |a,b| b['startTime'] <=> a['startTime'] }.each do |ss|

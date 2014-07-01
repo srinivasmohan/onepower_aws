@@ -1,20 +1,16 @@
 Description
 ===========
 
-This cookbook provides libraries, resources and providers to configure and manage Amazon Web Services components and offerings with the EC2 API. While the Opscode provide aws cookbook does do this, It does'nt support creating AWS PIOPS EBS volumes (which I need!) and hence this cookbook. 
+This cookbook provides libraries, resources and providers to configure and manage Amazon Web Services components and offerings with the EC2 API. Currently supported resources:
 
-Currently supported resources:
-
-* EBS Volumes (`ebs_volume`) - My primary need was to be able to setup [Provisioned IOPS Volumes](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSPerformance.html#benchmark_piops), so this is the only present option for now in this cookbook.
-* Elastic IPs - TODO/On-the-way
-* Elastic Load Balancer - TODO/On-the-way
+* EBS Volumes (`ebs_volume`)
+* Elastic IPs - (`elasticip`)
+* Elastic Load Balancer - TODO
 
 This is built from the Opscode AWS cookbook with the following differences -
 * Uses Fog instead of `rightaws`
 * As a result, allows creation of AWS PIOPS EBS volumes (EBS with guaranteed IOPs)
 * Tags created volumes if description is set (Name tag shows in console)
-
-This is a drop in replacement in cookbooks that use the AWS module - However for *existing chef managed instances that had volumes created using `aws` module*, you may need to update the node data as this module uses the node attributes `onepwr_aws/ebs_volume` to persist info on volume-ids of alloted volumes etc.
 
 Requirements
 ============
@@ -24,7 +20,7 @@ An Amazon Web Services account is required. The Access Key and Secret Access Key
 AWS Credentials
 ===============
 
-In order to manage/provision AWS , auth credentials are needed (access key id and access key secret). You could either bake in the keys into each cookbook (pain) or else put them in a data bag (preferably encrypted; although this example shows an unencrypted one) and source it in the recipe.
+In order to manage AWS components, authentication credentials need to be available to the node. There are a number of ways to handle this, such as node attributes or roles. We recommend storing these in a databag (Chef 0.8+), and loading them in the recipe where the resources are needed.
 
 DataBag recommendation:
 
@@ -37,14 +33,14 @@ DataBag recommendation:
 
 This can be loaded in a recipe with:
 
-    awscreds = data_bag_item("aws", "main")
+    aws = data_bag_item("aws", "main")
 
 And to access the values:
 
-    awscreds['aws_access_key_id']
-    awscreds['aws_secret_access_key']
+    aws['aws_access_key_id']
+    aws['aws_secret_access_key']
 
-More on specific usage below.
+We'll look at specific usage below.
 
 Recipes
 =======
@@ -59,9 +55,7 @@ The default recipe installs the `fog` RubyGem, which this cookbook requires in o
     ]
 
 The `gem_package` is created as a Ruby Object and thus installed during the Compile Phase of the Chef run.
-
 Fog version 1.6.0 and higher supports creating IOPS/Optimized iO EBS volumes so this cookbook will attempt to install that.
-
 Libraries
 =========
 
@@ -74,7 +68,7 @@ This is needed in any providers in the cookbook. Along with some helper methods 
 Resources and Providers
 =======================
 
-This cookbook provides the following:
+This cookbook provides two resources and corresponding providers.
 
 `ebs_volume.rb`
 -------------
@@ -103,59 +97,89 @@ Attribute Parameters:
 * `type` - EBS volume type - Can be `io1` for IOPS volume and defaults to `standard`.
 * `iops` - If volume type is `io1` then this a required param which is the number of IOPS requested.
 
-The `ebs_volume` provider does not allow you to detach/delete volumes that dont below to `this` instance (i.e. where this is invoked)
-
 Usage
 =====
 
-For both the `ebs_volume` resource, put the following at the top of the recipe where they are used.
+For both the `ebs_volume` and `elastic_ip` resources, put the following at the top of the recipe where they are used.
 
     include_recipe "onepower_aws"
-    awscreds = data_bag_item("aws", "main")
+    aws = data_bag_item("aws", "main")
 
-aws_ebs_volume
---------------
+onepower_aws_ebs_volume
+-----------------------
 
 The resource only handles manipulating the EBS volume, additional resources need to be created in the recipe to manage the attached volume as a filesystem or logical volume.
 
     onepower_aws_ebs_device "db_ebs_volume" do
-      aws_access_key awscreds['aws_access_key_id']
-      aws_secret_access_key awscreds['aws_secret_access_key']
+      aws_access_key aws['aws_access_key_id']
+      aws_secret_access_key aws['aws_secret_access_key']
       size 50
       device "/dev/sdi"
       action [ :create, :attach ]
-      description "#{node['fqdn']} /somepartition"
     end
 
 This will create a 50G volume, attach it to the instance as `/dev/sdi`.
 
     onepower_aws_ebs_device "db_ebs_volume_from_snapshot" do
-      aws_access_key awscreds['aws_access_key_id']
-      aws_secret_access_key awscreds['aws_secret_access_key']
+      aws_access_key aws['aws_access_key_id']
+      aws_secret_access_key aws['aws_secret_access_key']
       size 50
-      device "/dev/sdj"
+      device "/dev/sdi"
       snapshot_id "snap-ABCDEFGH"
       type "io1"
-      iops 500
+      iops "500"
       action [ :create, :attach ]
-      description "#{node['fqdn']} PIOPS /somepartition"
     end
 
-This will create a new io1 type EBS volume of 50G which guarantees upto 500 iops from the snapshot ID provided and attach it as `/dev/sdj`.
-In either case, the description is optional but if specified will get set as the Name tag of the Volume(so is visible in the Volumes section of the AWS Console)
+This will create a new io1 type EBS volume of 50G which guarantees upto 500 iops from the snapshot ID provided and attach it as `/dev/sdi`.
+
+onepower_aws_elasticip
+----------------------
+
+This LWRP does not "create" a new elastic IP. It can only map existing elastic IPs to an instance.
+Actions:
+
+* `:show` - Simply log Elastic IP info to chefs log
+* `:associate` - Associate instance with an Elastic IP
+* `:disassociate` - Dis-associate mapped Elastic IP from "this" instance.
+
+
+Attributes:
+* `:aws_access_key` - AWS/EC2 access key
+* `:aws_secret_access_key` - AWS/EC2 Secret
+* `:ip` - The elastic IP
+* `:timeout` - Defaults to 3 minutes but could be set to higher if needed.
+
+Usage
+
+```
+
+#Ohai reload is optional
+ohai "reload-ohai-nodedata" do
+	action :nothing
+end
+
+onepower_aws_elasticip "elastic-ip-setup" do
+	action [ :associate,:show ]
+	ip 1.2.3.4
+	aws_access_key aws['aws_access_key_id']
+	aws_secret_access_key aws['aws_secret_access_key']
+	#notifies :reload, resources(:ohai => "reload-ohai-nodedata"), :immediately
+end
+
+```
 
 License and Author
 ==================
 
-This cookbook:
+Changes to Opscode AWS cookbook to use Fog and support IOPS Vol creation:
 
-Author:: Srinivasan Mohan (<git@onepwr.org>)
+Author:: Srinivasan Mohan (<srinivas@onepwr.org>)
 
-Many thanks to the nice folks at Opscode for the original [AWS cookbook](https://github.com/opscode-cookbooks/aws) this derived from(and Chef!):
+Original AWS cookbook this derived from:
 Author:: Chris Walters (<cw@opscode.com>)
 Author:: AJ Christensen (<aj@opscode.com>)
 Author:: Justin Huff (<jjhuff@mspin.net>)
-
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -172,23 +196,5 @@ limitations under the License.
 Changes
 =======
 
-* `v0.10` - Initial commit, Only has support for EBS volume setup for now, ELB and Elastic IP setup coming soon.
-
-
-Misc
-=======
-I have tested this on Ubuntu/Debian systems only although its pure Ruby so it should work on Centos/Amzn/Redhat boxes as well. This cookbook does not do weird stuff with any attributes etc so it should be safe to run on a system with Chef gem 11.x as well although I have only tested this wth chef gem until v10.24.0.
-
-Important
-====
-
-Note that Amazon does'nt support PIOPS volumes in all regions. For example, us-west-1 does'nt support PIOPS at all while us-east-1 supports PIOPS in only 3 out of 5 Availability zones (AZs). The concept of AZ us-east-1a-e varies depending upon every individual AWS account (so your us-east-1a is not necessarily the same physical AZ as the us-east-1a I see under my account) so its pointless for me to list which AZs this would work with... 
-
-Trying to create a PIOPs volume in a zone that does'nt support it will lead to this response:
-`The specified zone does not support 'io1' volume type`
-
-This will cause an abort in the cookbook invocation. My recommendation is to figure out which AZs support PIOPS (See test script bin/test_iops_support.rb, update auth.yml with your AWS creds and point it to a AWS region) beforehand and setup your other cookbooks accordingly.  
-
-Also note that while standard EBS volumes allow significant burst (in terms of IOPs), PIOPS volumes seem to burst in a very limited way (e.g. a 1000 IOPS volume did not peak beyond 1030 in my tests) - The advantage of a PIOPS volume is that its performance is guaranteed to be consistently within your IOPs requested setting and thats it.
-
-To be able to use a PIOPS volume effectively, your instance needs to be an ebs-optimized instance (not every instance is capable of being ebs-optimized so check AWS docs) 
+* `v0.10` - Initial commit.
+* `v0.11` - Added elasticip.

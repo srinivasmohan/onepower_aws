@@ -12,7 +12,7 @@ action :create do
     raise ArgumentError, "IOPS must be between 100-2000" unless (n_iops>=100 && n_iops<=2000)
     raise ArgumentError, "Requested IOPS cannot exceed 10 times the volume size" if (n_iops > 10*n_size)
   else
-    new_resource.type('standard') #Default to standard EBS, iops does not matter here.
+    new_resource.type('standard') #Default to standard EBS
   end 
   if new_resource.snapshot_id =~ /vol/
     new_resource.snapshot_id(find_snapshot_id(new_resource.snapshot_id))
@@ -185,7 +185,8 @@ def create_volume(snapshot_id, size, availability_zone, timeout, voltype, iops,d
     newvol=ec2.create_volume(availability_zone,size.to_i,opts)
     if (desc && desc.length>0)
       #If I ever use the console, its nice to know whats what...
-      Chef::Log.info("Tagging Volume #{newvol.body['volumeId']} as Name:#{desc}")
+			vdesc=(voltype == "io1" ) ? "#{voltype}:#{iops}iops" : voltype
+      Chef::Log.info("Tagging #{size}GB:#{vdesc} Volume #{newvol.body['volumeId']} as Name: [#{desc}]")
       ec2.tags.create :key => "Name", :value => desc, :resource_id => newvol.body['volumeId']
     end
     begin
