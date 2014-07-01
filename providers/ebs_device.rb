@@ -6,8 +6,8 @@ action :create do
   if new_resource.type == 'io1'  #PIOPS volume
     raise "Optimized EBS volume needs #iops to be specified!" unless new_resource.iops
     itype=instance_type
-    raise "This is a #{itype} instance and AWS does not support Optimized EBS for this!" unless supports_optimized_ebs(itype)
-    n_iops=new_resource.iops.to_i
+		n_iops=new_resource.iops.to_i
+    raise "No optimized IOPS support for #{itype} or requested IOPS #{n_iops} exceeds what instance can provide" unless supports_optimized_ebs(itype,n_iops)
     n_size=new_resource.size.to_i
     raise ArgumentError, "IOPS must be between 100-2000" unless (n_iops>=100 && n_iops<=2000)
     raise ArgumentError, "Requested IOPS cannot exceed 10 times the volume size" if (n_iops > 10*n_size)
@@ -167,9 +167,12 @@ end
 
 
 #Only a subset of EC2 instances support optimized ebs for now...
-def supports_optimized_ebs(instancetype)
-  allowed=["m1.large","m1.xlarge","m2.xlarge","m2.4xlarge"]
-  allowed.include?(instancetype)
+#http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSOptimized.html
+def supports_optimized_ebs(instancetype, iops)
+	allowed={
+	"c1.xlarge"=>8000, "c3.2xlarge"=>8000, "c3.4xlarge"=>16000, "c3.xlarge"=>4000, "g2.2xlarge"=>8000, "i2.2xlarge"=>8000, "i2.4xlarge"=>16000, "i2.xlarge"=>4000, "m1.large"=>4000, "m1.xlarge"=>8000, "m2.2xlarge"=>4000, "m2.4xlarge"=>8000, "m3.2xlarge"=>8000, "m3.xlarge"=>4000, "r3.2xlarge"=>8000, "r3.4xlarge"=>16000, "r3.xlarge"=>4000
+	}
+	(allowed.has_key?(instancetype) && iops<= allowed[instancetype])
 end
 
 #Create a standard/optimized ebs volume and return its volume-id
