@@ -31,11 +31,18 @@
   packinstall.run_action(:install)
 end
 #Install required gems and load them
+#To be on the safer side, stick fog into system ruby as well as chef-clients ruby (if using omnibus)
 %w{fog}.each do |thisgem|
   r = gem_package thisgem do
     action :nothing
   end
   r.run_action(:install)
+
+#what if using omnibus and not system ruby
+	c= chef_gem thisgem do
+		action :nothing
+	end
+	c.run_action(:install)
 end
 
 require "rubygems"
